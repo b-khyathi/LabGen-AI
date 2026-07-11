@@ -23,10 +23,6 @@ Each generated manual includes:
 - Apparatus Required
 - Software Required
 - Procedure
-- Expected Output
-- Result
-- Viva Questions
-- Precautions
 
 ---
 
