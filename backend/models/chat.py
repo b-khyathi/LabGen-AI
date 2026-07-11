@@ -11,6 +11,12 @@ class Chat:
         return chats.insert_one(chat)
 
     @staticmethod
+    def get_all():
+        return list(
+            chats.find().sort("createdAt", -1)
+        )
+
+    @staticmethod
     def find_by_user(user_id):
         return list(
             chats.find({"userId": user_id})

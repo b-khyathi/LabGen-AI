@@ -8,13 +8,13 @@ from models.manual import Manual
 manual_bp = Blueprint("manual", __name__)
 
 @manual_bp.route("/manuals", methods=["POST"])
-@token_required
-def save_manual(current_user):
+# @token_required
+def save_manual(current_user = None):
 
     data = request.json
 
     result = Manual.create({
-        "userId": str(current_user["_id"]),
+        "userId": str(current_user["_id"]) if current_user else None,
         "title": data.get("title"),
         "course": data.get("course"),
         "subject": data.get("subject"),
@@ -31,12 +31,14 @@ def save_manual(current_user):
     })
 
 @manual_bp.route("/manuals", methods=["GET"])
-@token_required
-def get_manuals(current_user):
+# @token_required
+def get_manuals(current_user = None):
 
-    manuals = Manual.get_by_user(
-        str(current_user["_id"])
-    )
+    # manuals = Manual.get_by_user(
+    #     str(current_user["_id"])
+    # )
+
+    manuals = Manual.get_all()
 
     result = []
 
@@ -53,8 +55,8 @@ def get_manuals(current_user):
     return jsonify(result)
 
 @manual_bp.route("/manuals/<manual_id>", methods=["GET"])
-@token_required
-def get_manual(current_user, manual_id):
+# @token_required
+def get_manual(manual_id, current_user = None):
 
     manual = Manual.get_one(manual_id)
 
@@ -73,8 +75,8 @@ def get_manual(current_user, manual_id):
     })
 
 @manual_bp.route("/manuals/<manual_id>", methods=["DELETE"])
-@token_required
-def delete_manual(current_user, manual_id):
+# @token_required
+def delete_manual(manual_id, current_user = None):
 
     Manual.delete(manual_id)
 

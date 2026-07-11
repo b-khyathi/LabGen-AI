@@ -11,6 +11,12 @@ class Manual:
         return manuals.insert_one(data)
 
     @staticmethod
+    def get_all():
+        return list(
+            manuals.find().sort("createdAt", -1)
+        )
+
+    @staticmethod
     def get_by_user(user_id):
         return list(
             manuals.find({"userId": user_id})

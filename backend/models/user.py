@@ -8,6 +8,12 @@ class User:
     @staticmethod
     def create(user):
         return users.insert_one(user)
+    
+    @staticmethod
+    def get_all():
+        return list(
+            users.find().sort("createdAt", -1)
+        )
 
     @staticmethod
     def find_by_email(email):

@@ -19,8 +19,8 @@ UPLOAD_FOLDER = "uploads"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 @resources_bp.route("/resources", methods=["POST"])
-@token_required
-def upload_resource(current_user):
+# @token_required
+def upload_resource(current_user = None):
 
     if "file" not in request.files:
         return jsonify({"message": "No file uploaded"}), 400
@@ -39,7 +39,7 @@ def upload_resource(current_user):
     file.save(filepath)
 
     Resource.create({
-        "userId": str(current_user["_id"]),
+        "userId": str(current_user["_id"]) if current_user else None,
         "fileName": original_name,
         "storedName": filename,
         "path": filepath,
@@ -52,10 +52,11 @@ def upload_resource(current_user):
     }), 201
 
 @resources_bp.route("/resources", methods=["GET"])
-@token_required
-def get_resources(current_user):
+# @token_required
+def get_resources(current_user = None):
 
-    resources = Resource.find_by_user(str(current_user["_id"]))
+    # resources = Resource.find_by_user(str(current_user["_id"]))
+    resources = Resource.get_all()
 
     result = []
 
@@ -72,16 +73,16 @@ def get_resources(current_user):
     return jsonify(result)
 
 @resources_bp.route("/resources/<resource_id>", methods=["DELETE"])
-@token_required
-def delete_resource(current_user, resource_id):
+# @token_required
+def delete_resource(resource_id, current_user = None):
 
     resource = Resource.find_by_id(resource_id)
 
     if not resource:
         return jsonify({"message": "Resource not found"}), 404
 
-    if resource["userId"] != str(current_user["_id"]):
-        return jsonify({"message": "Unauthorized"}), 403
+    # if resource["userId"] != str(current_user["_id"]):
+    #     return jsonify({"message": "Unauthorized"}), 403
 
     if os.path.exists(resource["path"]):
         os.remove(resource["path"])

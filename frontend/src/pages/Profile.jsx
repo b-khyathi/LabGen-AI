@@ -9,7 +9,7 @@ export default function Profile() {
     name: "Khyathi",
     email: "khyathi@example.com",
     university: "Amity University Haryana",
-    course: "B.Tech Information Technology",
+    course: "B.Sc. Information Technology",
     year: "3rd Year",
   });
 

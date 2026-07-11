@@ -11,6 +11,12 @@ class Note:
         return notes.insert_one(note)
 
     @staticmethod
+    def get_all():
+        return list(
+            notes.find().sort("createdAt", -1)
+        )
+
+    @staticmethod
     def find_by_user(user_id):
         return list(
             notes.find({"userId": user_id})

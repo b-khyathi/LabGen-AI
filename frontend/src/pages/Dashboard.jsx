@@ -1,7 +1,7 @@
 import { FileText, Bot, Notebook, FolderOpen } from "lucide-react";
 import { useEffect, useState } from "react";
 import StatCard from "../app/StatCard";
-import api from "../services/api";
+import Loading from "../app/Loading";
 import { getNotes } from "../services/notes";
 import { getManuals } from "../services/manuals";
 import { getResources } from "../services/resources";
@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 
 import ActionCard from "../app/ActionCard";
+import { toast } from "sonner";
 
 export default function Dashboard() {
   const [manualCount, setManualCount] = useState(0);
@@ -21,13 +22,11 @@ export default function Dashboard() {
   const [notesCount, setNotesCount] = useState(0);
   const [resourceCount, setResourceCount] = useState(0);
   const [recentManuals, setRecentManuals] = useState([]);
-
-  useEffect(() => {
-    loadDashboard();
-  }, []);
+  const [loading, setLoading] = useState(true);
 
   const loadDashboard = async () => {
     try {
+      setLoading(true);
       const [manualsRes, notesRes, resourcesRes] = await Promise.all([
         getManuals(),
         getNotes(),
@@ -45,14 +44,25 @@ export default function Dashboard() {
       setRecentManuals(manualsRes.data.slice(0, 3));
     } catch (err) {
       console.error(err);
+      toast(err);
+    } finally {
+      setLoading(false);
     }
   };
 
+  useEffect(() => {
+    loadDashboard();
+  }, []);
+
+  
   return (
+    <>{
+          loading ? <Loading overlay={true}/> : <></>
+        }
     <div className="space-y-7">
       <div className="rounded-3xl bg-linear-to-r from-violet-700 to-indigo-600 p-10">
         <h1 className="text-4xl font-bold text-white">
-          Welcome back, Khyathi 👋
+          Welcome back!👋
         </h1>
 
         <p className="text-violet-100 mt-3 text-lg">
@@ -97,6 +107,7 @@ export default function Dashboard() {
               title="Generate Manual"
               subtitle="AI-powered lab creation"
               icon={<WandSparkles className="text-white" />}
+              path="/lab-generator"
             />
 
             <ActionCard
@@ -104,6 +115,7 @@ export default function Dashboard() {
               subtitle="Research & troubleshooting"
               color="bg-indigo-500"
               icon={<BotMessageSquare className="text-white" />}
+              path="/chat"
             />
 
             <ActionCard
@@ -111,6 +123,7 @@ export default function Dashboard() {
               subtitle="PDFs, Datasets, Docs"
               color="bg-emerald-500"
               icon={<Upload className="text-white" />}
+              path="/resources"
             />
 
             <ActionCard
@@ -118,6 +131,7 @@ export default function Dashboard() {
               subtitle="Review your observations"
               color="bg-pink-500"
               icon={<NotebookPen className="text-white" />}
+              path="/notes"
             />
           </div>
         </div>
@@ -150,5 +164,6 @@ export default function Dashboard() {
         </div>
       </div>
     </div>
+    </>
   );
 }

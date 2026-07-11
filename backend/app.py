@@ -28,7 +28,7 @@ from routes.manuals import manual_bp
 load_dotenv()
 
 app = Flask(__name__)
-CORS(app)
+CORS(app, origins=["http://localhost:5173"])
 
 app.register_blueprint(notes_bp)
 app.register_blueprint(resources_bp)

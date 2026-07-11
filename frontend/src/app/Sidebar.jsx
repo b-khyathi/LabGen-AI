@@ -153,7 +153,7 @@ transition-all
             <div className="flex-1">
               <p className="text-white font-semibold">Khyathi</p>
 
-              <p className="text-slate-400 text-sm">B.Tech IT</p>
+              <p className="text-slate-400 text-sm">B.Sc. IT</p>
             </div>
           )}
         </div>

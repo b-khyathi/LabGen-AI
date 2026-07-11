@@ -4,18 +4,23 @@ import { Button } from "../components/ui/button";
 import { Eye, Trash2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { getManuals, getManual, deleteManual } from "../services/manuals";
+import Loading from "../app/Loading";
 
 export default function History() {
   const [manuals, setManuals] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   const navigate = useNavigate();
 
   const loadManuals = async () => {
     try {
+      setLoading(true);
       const res = await getManuals();
       setManuals(res.data);
     } catch (err) {
       console.error(err);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -56,6 +61,9 @@ export default function History() {
   };
 
   return (
+    <>
+      {loading && <Loading overlay />}
+    
     <div>
       <h1 className="text-3xl font-bold text-white mb-8">Manual History</h1>
 
@@ -110,5 +118,6 @@ export default function History() {
         )}
       </div>
     </div>
+  </>
   );
 }

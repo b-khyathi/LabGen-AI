@@ -1,8 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import RichTextEditor from "../app/RichTextEditor";
+import Loading from "../app/Loading";
 import {
   improveNotes,
   summarizeNotes,
@@ -11,7 +12,7 @@ import {
   updateNote,
   deleteNote,
 } from "../services/api";
-// import { getNotes } from "../services/notes";
+import { toast } from "sonner";
 
 export default function Notes() {
   const [notes, setNotes] = useState([]);
@@ -23,122 +24,241 @@ export default function Notes() {
 
   const [search, setSearch] = useState("");
 
+  const [saving, setSaving] = useState(false);
   const [improving, setImproving] = useState(false);
   const [summarizing, setSummarizing] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  const savedRef = useRef({ id: null, title: "", contentHtml: "" });
 
   useEffect(() => {
     loadNotes();
   }, []);
 
   const loadNotes = async (selected = null) => {
-    const res = await getNotes();
+    try {
+      setLoading(true);
+      const res = await getNotes();
+      setNotes(res.data);
 
-    setNotes(res.data);
-
-    if (res.data.length === 0) return;
-
-    let note;
-
-    if (selected) {
-      note = res.data.find((n) => n.id === selected);
-    }
-
-    if (!note) {
-      note = res.data[0];
-    }
-
-    setSelectedId(note.id);
-    setTitle(note.title);
-    setContentHtml(note.contentHtml || "");
-    setContentText(note.contentText || "");
-  };
-
-  const handleNewNote = async () => {
-    const res = await createNote({
-      title: "Untitled",
-      content: "",
-    });
-
-    await loadNotes(res.data.id);
-  };
-
-  useEffect(() => {
-    if (!selectedId) return;
-
-    const timeout = setTimeout(async () => {
-      try {
-        await updateNote(selectedId, {
-          title,
-          content: contentHtml,
-        });
-
-        setNotes((prev) =>
-          prev.map((note) =>
-            note.id === selectedId
-              ? {
-                  ...note,
-                  title,
-                  content: contentHtml,
-                }
-              : note,
-          ),
-        );
-      } catch (err) {
-        console.error(err);
+      if (res.data.length === 0) {
+        selectNote(null);
+        return;
       }
-    }, 500);
 
-    return () => clearTimeout(timeout);
-  }, [selectedId, title, contentHtml]);
+      let note = selected ? res.data.find((n) => n.id === selected) : null;
+      if (!note) note = res.data[0];
+
+      selectNote(note);
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to load notes");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const selectNote = (note) => {
+    setSelectedId(note?.id ?? null);
+    setTitle(note?.title ?? "");
+    setContentHtml(note?.contentHtml ?? note?.content ?? "");
+    setContentText(note?.contentText ?? note?.content ?? "");
+    savedRef.current = {
+      id: note?.id ?? null,
+      title: note?.title ?? "",
+      contentHtml: note?.contentHtml ?? note?.content ?? "",
+    };
+  };
+
+  const isDirty = () => {
+    const saved = savedRef.current;
+    return (
+      saved.id === selectedId &&
+      (saved.title !== title || saved.contentHtml !== contentHtml)
+    );
+  };
+
+  const persistNote = async () => {
+    if (!selectedId) return false;
+
+    try {
+      await updateNote(selectedId, { title, content: contentHtml });
+
+      savedRef.current = { id: selectedId, title, contentHtml };
+
+      setNotes((prev) =>
+        prev.map((n) =>
+          n.id === selectedId ? { ...n, title, content: contentHtml } : n,
+        ),
+      );
+
+      return true;
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to save note");
+      return false;
+    }
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    const ok = await persistNote();
+    setSaving(false);
+    if (ok) toast.success("Note saved");
+  };
+
+  const confirmUnsavedChanges = (proceed) => {
+    toast.custom(
+      (t) => (
+        <div className="bg-amber-50 text-black rounded-xl p-4 w-80 shadow-lg border border-slate-700">
+          <p className="text-sm mb-3">
+            You have unsaved changes. Save before switching?
+          </p>
+          <div className="flex justify-end gap-2">
+            <Button size="sm" variant="ghost" onClick={() => toast.dismiss(t)}>
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              variant="destructive"
+              onClick={() => {
+                toast.dismiss(t);
+                proceed();
+              }}
+            >
+              ✕ Discard
+            </Button>
+            <Button
+              size="sm"
+              onClick={async () => {
+                toast.dismiss(t);
+                setSaving(true);
+                const ok = await persistNote();
+                setSaving(false);
+                if (ok) {
+                  toast.success("Note saved");
+                  proceed();
+                }
+              }}
+            >
+              ✓ Save
+            </Button>
+          </div>
+        </div>
+      ),
+      { duration: Infinity },
+    );
+  };
+
+  const withUnsavedCheck = (action) => {
+    if (isDirty()) {
+      confirmUnsavedChanges(action);
+    } else {
+      action();
+    }
+  };
 
   const handleSelectNote = (note) => {
-    setSelectedId(note.id);
-    setTitle(note.title);
-    setContentHtml(note.content || "");
-    setContentText(note.content || "");
+    if (note.id === selectedId) return;
+    withUnsavedCheck(() => selectNote(note));
+  };
+
+  const handleNewNote = () => {
+    withUnsavedCheck(async () => {
+      try {
+        const res = await createNote({ title: "Untitled", content: "" });
+        await loadNotes(res.data.id);
+        toast.success("New note created");
+      } catch (err) {
+        console.error(err);
+        toast.error("Failed to create note");
+      }
+    });
   };
 
   const filteredNotes = notes.filter((note) =>
-    note.title.toLowerCase().includes(search.toLowerCase()),
+    (note.title || "").toLowerCase().includes(search.toLowerCase()),
   );
 
-  const handleDelete = async () => {
+  const handleDelete = () => {
     if (!selectedId) return;
 
-    if (!window.confirm("Delete this note?")) return;
-
-    await deleteNote(selectedId);
-
-    await loadNotes();
+    toast("Delete this note?", {
+      action: {
+        label: "Delete",
+        onClick: async () => {
+          try {
+            await deleteNote(selectedId);
+            toast.success("Deleted successfully");
+            await loadNotes();
+          } catch (err) {
+            console.error(err);
+            toast.error("Failed to delete note");
+          }
+        },
+      },
+      cancel: {
+        label: "Cancel",
+        onClick: () => {},
+      },
+    });
   };
 
   const handleImprove = async () => {
-    if (!contentText.trim()) return;
+    if (!contentText.trim()) {
+      toast("Nothing to improve yet");
+      return;
+    }
 
     setImproving(true);
-
     try {
       const data = await improveNotes(contentText);
       setContentHtml(data.result);
+      toast.success("Notes improved - remember to save");
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to improve notes");
     } finally {
       setImproving(false);
     }
   };
 
   const handleSummarize = async () => {
-    if (!contentText.trim()) return;
+    if (!contentText.trim()) {
+      toast("Nothing to summarize yet");
+      return;
+    }
 
     setSummarizing(true);
-
     try {
       const data = await summarizeNotes(contentText);
       setContentHtml(data.result);
+      toast.success("Notes summarized - remember to save");
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to summarize notes");
     } finally {
       setSummarizing(false);
     }
   };
 
+  useEffect(() => {
+    const handler = (e) => {
+      if (isDirty()) {
+        e.preventDefault();
+        e.returnValue = "";
+      }
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  });
+
+  // if (loading) {
+  //   return <Loading />;
+  // }
+
   return (
+    <> {loading && <Loading overlay />}
     <div className="grid grid-cols-4 gap-6 h-[calc(100vh-100px)]">
       {/* Sidebar */}
       <Card className="col-span-1 bg-slate-900 border-slate-800 rounded-3xl p-5 flex flex-col">
@@ -170,7 +290,9 @@ export default function Notes() {
               </h3>
 
               <p className="text-slate-400 text-sm">
-                {new Date(note.updatedAt).toLocaleDateString()}
+                {note.updatedAt
+                  ? new Date(note.updatedAt).toLocaleDateString()
+                  : ""}
               </p>
             </div>
           ))}
@@ -186,19 +308,36 @@ export default function Notes() {
             onChange={(e) => setTitle(e.target.value)}
             placeholder="Note title..."
             className="text-white text-xl font-semibold"
+            disabled={!selectedId}
           />
 
-          <Button variant="destructive" onClick={handleDelete}>
+          <Button
+            onClick={handleSave}
+            disabled={!selectedId || saving}
+            className="cursor-pointer"
+          >
+            {saving ? "Saving..." : "💾 Save"}
+          </Button>
+
+          <Button
+            variant="destructive"
+            onClick={handleDelete}
+            disabled={!selectedId}
+            className="cursor-pointer"
+          >
             Delete
           </Button>
         </div>
 
         <div className="flex gap-3 mb-4">
-          <Button onClick={handleImprove} disabled={improving}>
+          <Button onClick={handleImprove} disabled={improving || !selectedId}>
             {improving ? "Improving..." : "🎓 Rewrite Notes"}
           </Button>
 
-          <Button onClick={handleSummarize} disabled={summarizing}>
+          <Button
+            onClick={handleSummarize}
+            disabled={summarizing || !selectedId}
+          >
             {summarizing ? "Summarizing..." : "✨ Summarize"}
           </Button>
         </div>
@@ -214,5 +353,6 @@ export default function Notes() {
         </div>
       </Card>
     </div>
+    </>
   );
 }
